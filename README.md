@@ -41,14 +41,16 @@ geo.lookup("<ulica>", "12A", "<miasto>")
 
 | Kolumna | Zawartość |
 |---|---|
-| `ID` | Obiekt OSM, np. `node/123` lub `way/456` |
+| `OSM Type` | Typ obiektu OSM: `node` (punkt, np. wejście do budynku), `way` (obrys budynku lub działki; współrzędne to jego środek), `relation` (obiekt złożony) |
+| `OSM ID` | Numer obiektu w OSM; razem z typem jednoznacznie go identyfikuje |
+| `OSM Link` | Podgląd obiektu na openstreetmap.org |
 | `Street Name` | `addr:street`, a gdy go brak, `addr:place` |
 | `Street Number` | `addr:housenumber` |
 | `Postcode` | `addr:postcode` (może być puste) |
 | `City` | `addr:city` (może być puste) |
 | `Lng`, `Lat` | WGS84; dla budynków środek obrysu |
 
-Tag z kilkoma numerami (`2;4`) daje kilka wierszy z tym samym `ID`.
+Tag z kilkoma numerami (`2;4`) daje kilka wierszy z tym samym `OSM ID`.
 
 ## Wyniki wyszukiwania
 

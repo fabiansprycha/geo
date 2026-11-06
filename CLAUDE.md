@@ -10,7 +10,7 @@ README ma pozostać ogólne: nie wpisuj tam nazwy przykładowej gminy.
 - Budowa bazy: `python osm_geocoder.py build --area "Enköpings kommun"` (sieć: Overpass API)
 - Budowa offline: `python osm_geocoder.py build --from-file overpass.json`
 - Wyszukiwanie: `python osm_geocoder.py lookup "<ulica>" "<numer>" "<miasto>"`
-- Eksport: `python osm_geocoder.py export addresses.csv` (kolumny: ID, Street Name, Street Number, Postcode, City, Lng, Lat)
+- Eksport: `python osm_geocoder.py export addresses.csv` (kolumny: OSM Type, OSM ID, OSM Link, Street Name, Street Number, Postcode, City, Lng, Lat)
 
 ## Zasady
 

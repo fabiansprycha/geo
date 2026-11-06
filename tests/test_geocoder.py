@@ -91,8 +91,9 @@ class GeocoderTest(unittest.TestCase):
             rows = list(csv.reader(f))
         self.assertEqual(rows[0], eg.CSV_COLUMNS)
         self.assertEqual(len(rows), self.count + 1)
-        hacksta = next(r for r in rows if r[1] == "Hacksta")
-        self.assertEqual(hacksta, ["node/6", "Hacksta", "1", "", "Enköping", "16.95", "59.6"])
+        hacksta = next(r for r in rows if r[3] == "Hacksta")
+        self.assertEqual(hacksta, ["node", "6", "https://www.openstreetmap.org/node/6",
+                                   "Hacksta", "1", "", "Enköping", "16.95", "59.6"])
 
     def test_build_requires_area(self):
         with self.assertRaises(SystemExit):

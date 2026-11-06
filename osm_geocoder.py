@@ -30,7 +30,10 @@ DEFAULT_DB = "addresses.db"
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 DEFAULT_ADMIN_LEVEL = "7"  # w Szwecji gmina (kommun) ma admin_level=7
 USER_AGENT = "osm-geocoder/1.0 (https://github.com/fabiansprycha/geo)"
-CSV_COLUMNS = ["ID", "Street Name", "Street Number", "Postcode", "City", "Lng", "Lat"]
+# OSM Type: node = punkt (np. wejście), way = obrys budynku/działki (współrzędne to jego środek),
+# relation = złożony obiekt. OSM ID: numer obiektu danego typu,
+# podgląd: https://www.openstreetmap.org/<OSM Type>/<OSM ID>
+CSV_COLUMNS = ["OSM Type", "OSM ID", "OSM Link", "Street Name", "Street Number", "Postcode", "City", "Lng", "Lat"]
 # Rekordy tego samego adresu bliżej niż ten próg traktujemy jako jeden adres
 # (np. węzeł wejścia i obrys budynku z tymi samymi tagami).
 SAME_PLACE_METERS = 300.0
@@ -168,7 +171,8 @@ def export_csv(db_path: str, csv_path: str) -> int:
             w.writerow(CSV_COLUMNS)
             n = 0
             for osm_type, osm_id, name, number, postcode, city, lon, lat in rows:
-                w.writerow([f"{osm_type}/{osm_id}", name, number, postcode or "", city or "", lon, lat])
+                w.writerow([osm_type, osm_id, f"https://www.openstreetmap.org/{osm_type}/{osm_id}",
+                            name, number, postcode or "", city or "", lon, lat])
                 n += 1
     finally:
         con.close()
