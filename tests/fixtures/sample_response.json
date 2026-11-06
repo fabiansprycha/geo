@@ -1,0 +1,26 @@
+{
+  "version": 0.6,
+  "osm3s": {"timestamp_osm_base": "2026-11-01T00:00:00Z"},
+  "elements": [
+    {"type": "node", "id": 1, "lat": 59.63560, "lon": 17.07760,
+     "tags": {"addr:street": "Kungsgatan", "addr:housenumber": "12A", "addr:postcode": "745 31", "addr:city": "Enköping"}},
+    {"type": "way", "id": 2, "center": {"lat": 59.63565, "lon": 17.07770},
+     "tags": {"building": "yes", "addr:street": "Kungsgatan", "addr:housenumber": "12A", "addr:city": "Enköping"}},
+    {"type": "node", "id": 3, "lat": 59.63600, "lon": 17.07900,
+     "tags": {"addr:street": "Kungsgatan", "addr:housenumber": "5"}},
+    {"type": "node", "id": 4, "lat": 59.63000, "lon": 17.25000,
+     "tags": {"addr:street": "Storgatan", "addr:housenumber": "3", "addr:city": "Grillby"}},
+    {"type": "node", "id": 5, "lat": 59.73000, "lon": 17.30000,
+     "tags": {"addr:street": "Storgatan", "addr:housenumber": "3", "addr:city": "Örsundsbro"}},
+    {"type": "node", "id": 6, "lat": 59.60000, "lon": 16.95000,
+     "tags": {"addr:place": "Hacksta", "addr:housenumber": "1", "addr:city": "Enköping"}},
+    {"type": "node", "id": 7, "lat": 59.64000, "lon": 17.06000,
+     "tags": {"addr:street": "Västra Ringvägen", "addr:housenumber": "16 A", "addr:city": "Enköping"}},
+    {"type": "node", "id": 8, "lat": 59.63700, "lon": 17.08000,
+     "tags": {"addr:street": "Skolgatan", "addr:housenumber": "2;4", "addr:city": "Enköping"}},
+    {"type": "relation", "id": 9,
+     "tags": {"addr:street": "Bortgatan", "addr:housenumber": "1"}},
+    {"type": "node", "id": 10, "lat": 59.63000, "lon": 17.07000,
+     "tags": {"addr:housenumber": "7"}}
+  ]
+}

@@ -1,0 +1,8 @@
+# Dane: nie commitujemy baz ani zrzutów z Overpass
+*.db
+*.db.tmp
+*.sqlite
+overpass*.json
+__pycache__/
+*.pyc
+.venv/
