@@ -6,3 +6,4 @@ overpass*.json
 __pycache__/
 *.pyc
 .venv/
+*.csv
