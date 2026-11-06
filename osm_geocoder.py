@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
-"""Lokalny geokoder adresów gminy Enköping (Szwecja) oparty na danych OSM.
+"""Lokalny geokoder adresów dla wybranego obszaru administracyjnego, oparty na danych OSM.
 
-Pobiera wszystkie obiekty z addr:housenumber w granicy Enköpings kommun
+Pobiera wszystkie obiekty z addr:housenumber w granicy obszaru (np. gminy)
 przez Overpass API, zapisuje je w SQLite, a potem wyszukuje współrzędne
-po ulicy (lub addr:place), numerze i miejscowości. Tylko biblioteka
-standardowa Pythona.
+po ulicy (lub addr:place), numerze i miejscowości albo eksportuje do CSV.
+Tylko biblioteka standardowa Pythona.
 
 Użycie:
-    python enkoping_geocoder.py build [--db enkoping.db] [--from-file overpass.json] [--save-raw overpass.json]
-    python enkoping_geocoder.py lookup "Kungsgatan" "12A" "Enköping" [--db enkoping.db]
+    python osm_geocoder.py build --area "<nazwa obszaru w OSM>" [--admin-level 7] [--db addresses.db]
+    python osm_geocoder.py lookup "<ulica>" "<numer>" "<miasto>" [--db addresses.db]
+    python osm_geocoder.py export addresses.csv [--db addresses.db]
 """
 from __future__ import annotations
 
 import argparse
+import csv
 import difflib
 import json
 import math
@@ -24,20 +26,26 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-DEFAULT_DB = "enkoping.db"
+DEFAULT_DB = "addresses.db"
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
-MUNICIPALITY = "Enköpings kommun"
-ADMIN_LEVEL = "7"
-USER_AGENT = "enkoping-geocoder/1.0 (https://github.com/)"
+DEFAULT_ADMIN_LEVEL = "7"  # w Szwecji gmina (kommun) ma admin_level=7
+USER_AGENT = "osm-geocoder/1.0 (https://github.com/fabiansprycha/geo)"
+CSV_COLUMNS = ["ID", "Street Name", "Street Number", "Postcode", "City", "Lng", "Lat"]
 # Rekordy tego samego adresu bliżej niż ten próg traktujemy jako jeden adres
 # (np. węzeł wejścia i obrys budynku z tymi samymi tagami).
 SAME_PLACE_METERS = 300.0
 
-QUERY = f"""[out:json][timeout:300];
-area["name"="{MUNICIPALITY}"]["admin_level"="{ADMIN_LEVEL}"]->.a;
-nwr["addr:housenumber"](area.a);
-out center tags;
-"""
+
+
+def build_query(area: str, admin_level: str = DEFAULT_ADMIN_LEVEL) -> str:
+    area = area.replace("\\", "\\\\").replace('"', '\\"')
+    level = f'["admin_level"="{admin_level}"]' if admin_level else ""
+    return (
+        "[out:json][timeout:600];\n"
+        f'area["name"="{area}"]{level}->.a;\n'
+        'nwr["addr:housenumber"](area.a);\n'
+        "out center tags;\n"
+    )
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS addresses (
@@ -90,7 +98,7 @@ def split_numbers(raw: str) -> list[str]:
 
 # --- pobieranie i budowa bazy --------------------------------------------
 
-def fetch_overpass(url: str = OVERPASS_URL, query: str = QUERY, timeout: int = 360) -> dict:
+def fetch_overpass(query: str, url: str = OVERPASS_URL, timeout: int = 660) -> dict:
     data = urllib.parse.urlencode({"data": query}).encode()
     req = urllib.request.Request(url, data=data, headers={"User-Agent": USER_AGENT})
     with urllib.request.urlopen(req, timeout=timeout) as resp:
@@ -146,6 +154,25 @@ def build(db_path: str, payload: dict) -> int:
         con.close()
     tmp.replace(path)  # podmiana atomowa: stara baza działa do końca budowy
     return count
+
+
+def export_csv(db_path: str, csv_path: str) -> int:
+    """Zapisuje wszystkie adresy z bazy do CSV (UTF-8, przecinek)."""
+    con = sqlite3.connect(db_path)
+    try:
+        rows = con.execute(
+            "SELECT osm_type, osm_id, COALESCE(street, place), housenumber, postcode, city, lon, lat"
+            " FROM addresses ORDER BY COALESCE(street, place), number_key, osm_type, osm_id")
+        with open(csv_path, "w", newline="", encoding="utf-8") as f:
+            w = csv.writer(f)
+            w.writerow(CSV_COLUMNS)
+            n = 0
+            for osm_type, osm_id, name, number, postcode, city, lon, lat in rows:
+                w.writerow([f"{osm_type}/{osm_id}", name, number, postcode or "", city or "", lon, lat])
+                n += 1
+    finally:
+        con.close()
+    return n
 
 
 # --- wyszukiwanie ----------------------------------------------------------
@@ -228,6 +255,9 @@ def main(argv: list[str] | None = None) -> int:
     sub = p.add_subparsers(dest="cmd", required=True)
 
     b = sub.add_parser("build", help="pobierz adresy z Overpass i zbuduj bazę SQLite")
+    b.add_argument("--area", help='nazwa granicy w OSM (tag name), np. gminy')
+    b.add_argument("--admin-level", default=DEFAULT_ADMIN_LEVEL,
+                   help='admin_level granicy (domyślnie 7); pusty "" = bez filtra')
     b.add_argument("--db", default=DEFAULT_DB)
     b.add_argument("--url", default=OVERPASS_URL, help="adres serwera Overpass")
     b.add_argument("--from-file", help="zbuduj z zapisanej odpowiedzi Overpass (JSON) zamiast pobierać")
@@ -240,23 +270,38 @@ def main(argv: list[str] | None = None) -> int:
     l.add_argument("city", nargs="?")
     l.add_argument("--db", default=DEFAULT_DB)
 
+    e = sub.add_parser("export", help="zapisz adresy z bazy do pliku CSV")
+    e.add_argument("csv", help="ścieżka pliku CSV")
+    e.add_argument("--db", default=DEFAULT_DB)
+
     args = p.parse_args(argv)
 
+    if args.cmd == "export":
+        if not Path(args.db).exists():
+            print(f"Brak bazy {args.db}. Uruchom najpierw: build", file=sys.stderr)
+            return 2
+        n = export_csv(args.db, args.csv)
+        print(f"Zapisano {n} adresów w {args.csv}")
+        return 0
+
     if args.cmd == "build":
+        if not args.from_file and not args.area:
+            p.error("build wymaga --area (albo --from-file)")
+        query = build_query(args.area, args.admin_level) if args.area else ""
         if args.print_query:
-            print(QUERY)
+            print(query)
             return 0
         if args.from_file:
             payload = json.loads(Path(args.from_file).read_text(encoding="utf-8"))
         else:
             print(f"Pobieram adresy z {args.url} ...", file=sys.stderr)
-            payload = fetch_overpass(args.url)
+            payload = fetch_overpass(query, args.url)
         if args.save_raw:
             Path(args.save_raw).write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
         count = build(args.db, payload)
         print(f"Zapisano {count} adresów w {args.db}")
         if count == 0:
-            print("0 adresów: sprawdź nazwę i admin_level gminy w zapytaniu.", file=sys.stderr)
+            print("0 adresów: sprawdź w OSM nazwę (--area) i admin_level granicy.", file=sys.stderr)
             return 1
         return 0
 

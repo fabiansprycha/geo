@@ -7,7 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-import enkoping_geocoder as eg  # noqa: E402
+import osm_geocoder as eg  # noqa: E402
 
 FIXTURE = ROOT / "tests" / "fixtures" / "sample_response.json"
 
@@ -77,6 +77,26 @@ class GeocoderTest(unittest.TestCase):
         r = self.geo.lookup("Kungsgtan", "12A", "Enköping")
         self.assertEqual(r["status"], "not_found")
         self.assertIn("Kungsgatan", r["suggestions"])
+
+    def test_build_query(self):
+        q = eg.build_query('Gmina "X"', "7")
+        self.assertIn('area["name"="Gmina \\"X\\""]["admin_level"="7"]', q)
+        self.assertNotIn("admin_level", eg.build_query("Gmina", ""))
+
+    def test_export_csv(self):
+        import csv
+        out = Path(self.tmp.name) / "out.csv"
+        self.assertEqual(eg.export_csv(self.db, str(out)), self.count)
+        with open(out, encoding="utf-8", newline="") as f:
+            rows = list(csv.reader(f))
+        self.assertEqual(rows[0], eg.CSV_COLUMNS)
+        self.assertEqual(len(rows), self.count + 1)
+        hacksta = next(r for r in rows if r[1] == "Hacksta")
+        self.assertEqual(hacksta, ["node/6", "Hacksta", "1", "", "Enköping", "16.95", "59.6"])
+
+    def test_build_requires_area(self):
+        with self.assertRaises(SystemExit):
+            eg.main(["build", "--print-query"])
 
     def test_cli(self):
         self.assertEqual(eg.main(["lookup", "Kungsgatan", "12A", "Enköping", "--db", self.db]), 0)

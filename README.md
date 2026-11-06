@@ -1,36 +1,56 @@
-# enkoping-geocoder
+# geo
 
-Lokalny geokoder adresów w gminie Enköping (Szwecja). Skrypt jednym zapytaniem
-pobiera wszystkie adresy gminy z OpenStreetMap przez Overpass API i zapisuje je
-w bazie SQLite. Twoje narzędzie odpytuje potem tylko tę bazę, bez sieci.
+Lokalny geokoder adresów z OpenStreetMap dla dowolnego obszaru administracyjnego
+(np. gminy). Skrypt jednym zapytaniem pobiera wszystkie adresy obszaru przez
+Overpass API i zapisuje je w bazie SQLite. Twoje narzędzie odpytuje potem tylko
+tę bazę, bez sieci. Adresy można też wyeksportować do CSV.
 
 Wymaga wyłącznie Pythona 3.9+ (biblioteka standardowa).
 
 ## Użycie
 
 ```bash
-python enkoping_geocoder.py build                     # pobiera z Overpass, tworzy enkoping.db
-python enkoping_geocoder.py lookup "Kungsgatan" "12A" "Enköping"
+python osm_geocoder.py build --area "<nazwa granicy w OSM>"      # tworzy addresses.db
+python osm_geocoder.py lookup "<ulica>" "<numer>" "<miasto>"
+python osm_geocoder.py export addresses.csv
 ```
 
-Przydatne opcje `build`:
+`--area` to dokładna wartość tagu `name` granicy w OSM (sprawdzisz ją na
+openstreetmap.org, klikając obszar). Domyślnie szukana jest granica z
+`admin_level=7`; inny poziom podasz przez `--admin-level`, a `--admin-level ""`
+wyłącza ten filtr. Jeśli `build` zapisze 0 adresów, nazwa albo poziom się nie zgadzają.
+
+Inne opcje `build`:
 
 - `--save-raw overpass.json` zapisuje surową odpowiedź, `--from-file overpass.json` buduje z niej bazę bez sieci.
 - `--url` pozwala użyć innego serwera Overpass (np. `https://overpass.kumi.systems/api/interpreter`).
 - `--print-query` wypisuje zapytanie, które można też wkleić do Overpass Turbo.
-
-Jeśli `build` zapisze 0 adresów, sprawdź w OSM nazwę i `admin_level` granicy gminy
-(stałe `MUNICIPALITY` i `ADMIN_LEVEL` w skrypcie).
+- `--db` zmienia ścieżkę bazy (domyślnie `addresses.db`; to samo dla `lookup` i `export`).
 
 Z Pythona:
 
 ```python
-from enkoping_geocoder import Geocoder
-geo = Geocoder("enkoping.db")
-geo.lookup("Kungsgatan", "12A", "Enköping")
+from osm_geocoder import Geocoder
+geo = Geocoder("addresses.db")
+geo.lookup("<ulica>", "12A", "<miasto>")
 ```
 
-## Wyniki
+## Eksport do CSV
+
+`export` zapisuje plik UTF-8 z kolumnami:
+
+| Kolumna | Zawartość |
+|---|---|
+| `ID` | Obiekt OSM, np. `node/123` lub `way/456` |
+| `Street Name` | `addr:street`, a gdy go brak, `addr:place` |
+| `Street Number` | `addr:housenumber` |
+| `Postcode` | `addr:postcode` (może być puste) |
+| `City` | `addr:city` (może być puste) |
+| `Lng`, `Lat` | WGS84; dla budynków środek obrysu |
+
+Tag z kilkoma numerami (`2;4`) daje kilka wierszy z tym samym `ID`.
+
+## Wyniki wyszukiwania
 
 `lookup` zwraca JSON z polem `status`:
 
@@ -45,22 +65,22 @@ Kod wyjścia CLI: 0 dla `exact`/`ambiguous`, 1 dla pozostałych, 2 gdy brak bazy
 
 ## Dopasowanie
 
-- Wielkość liter, nadmiarowe spacje i znaki diakrytyczne są ignorowane: `enkoping` = `Enköping`, `vastra ringvagen` = `Västra Ringvägen`.
-- Numery są tekstem bez spacji: `16 A` = `16a`. Tag z kilkoma numerami (`2;4`) daje osobne rekordy.
+- Wielkość liter, nadmiarowe spacje i znaki diakrytyczne są ignorowane (`o` = `ö`, `a` = `å`).
+- Numery są tekstem bez spacji: `16 A` = `16a`.
 - Adresy wiejskie bez ulicy (`addr:place`) wyszukuje się, podając nazwę miejscowości lub gospodarstwa jako ulicę. Nazwa z `addr:place` jest też akceptowana jako miasto.
 - Węzeł wejścia i budynek z tym samym adresem (bliżej niż 300 m) są traktowane jako jeden adres.
 
 ## Ograniczenia danych
 
-OSM w Szwecji ma duże braki w adresach. Pełne dane adresowe (Belägenhetsadress)
-udostępnia Lantmäteriet na wniosek; mogą być w SWEREF 99 TM (EPSG:3006) i wymagać
-przeliczenia na WGS84. Nie uzupełniaj braków masowym odpytywaniem Nominatim ani
-serwisów komercyjnych, bo zabraniają tego ich regulaminy.
+Kompletność adresów w OSM zależy od kraju i regionu i bywa niska. Do pełnego
+pokrycia potrzebne są oficjalne rejestry adresów (w Szwecji Lantmäteriet,
+w SWEREF 99 TM, EPSG:3006). Nie uzupełniaj braków masowym odpytywaniem Nominatim
+ani serwisów komercyjnych, bo zabraniają tego ich regulaminy.
 
 ## Licencja
 
-Dane: © współtwórcy OpenStreetMap, licencja ODbL 1.0. Baza zbudowana z OSM jest
-bazą pochodną i podlega ODbL. Licencja kodu: do ustalenia.
+Dane: © współtwórcy OpenStreetMap, licencja ODbL 1.0. Baza i CSV zbudowane z OSM
+są bazami pochodnymi i podlegają ODbL. Licencja kodu: do ustalenia.
 
 ## Testy
 
